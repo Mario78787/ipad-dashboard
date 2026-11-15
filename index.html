@@ -20,11 +20,11 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
 .grid{display:grid;gap:14px;height:100%;
   grid-template-columns:1fr 1fr;
   grid-template-rows:auto minmax(0,1fr) auto;
-  grid-template-areas:"clock oev" "weather oev" "scenes pomo";}
+  grid-template-areas:"clock oev" "weather oev" "spotify pomo";}
 @media (orientation:portrait){
   .grid{grid-template-columns:1fr;
     grid-template-rows:auto auto minmax(0,1fr) auto auto;
-    grid-template-areas:"clock" "weather" "oev" "scenes" "pomo";}
+    grid-template-areas:"clock" "weather" "oev" "spotify" "pomo";}
 }
 .tile{background:var(--tile);border:1px solid var(--line);border-radius:22px;padding:16px 20px;min-height:0;overflow:hidden;position:relative;}
 .label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
@@ -61,16 +61,19 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
 .dep-to{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .dep-in{color:var(--dim);font-size:18px;white-space:nowrap;}
 .dep-in.soon{color:var(--accent);font-weight:600;}
-.msg{color:var(--dim);font-size:18px;line-height:1.5;padding:12px 0;}
+.msg{color:var(--dim);font-size:18px;line-height:1.5;padding:8px 0;}
 
-/* Szenen */
-.scenes{display:flex;gap:12px;}
-a.scene{flex:1;display:flex;align-items:center;justify-content:center;gap:12px;height:92px;border-radius:20px;background:var(--tile2);
-  border:1px solid var(--line);color:var(--text);text-decoration:none;font-size:24px;font-weight:600;}
-a.scene:active,a.scene.sent{background:var(--accent);color:#1a1205;}
-a.scene .ic{font-size:32px;}
+/* Spotify */
+.sp-row{display:flex;align-items:center;gap:14px;}
+.sp-cover{width:72px;height:72px;border-radius:10px;object-fit:cover;background:var(--tile2);flex:none;}
+.sp-text{flex:1;min-width:0;}
+.sp-title{font-size:20px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sp-artist{font-size:16px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.sp-btns{display:flex;gap:8px;flex:none;}
+.btn.round{width:54px;height:54px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;}
+.btn.round svg{display:block;}
 
-/* Pomodoro */
+/* Timer */
 .pomo-row{display:flex;align-items:center;gap:14px;}
 .pomo-time{font-size:56px;font-weight:300;font-variant-numeric:tabular-nums;line-height:1;}
 .pomo-btns{margin-left:auto;display:flex;gap:8px;}
@@ -80,6 +83,30 @@ a.scene .ic{font-size:32px;}
 .bar>div{height:100%;width:0;background:var(--accent);}
 .tile.flash{animation:fl 1s steps(2,end) infinite;}
 @keyframes fl{0%{background:var(--tile)}50%{background:#4a3410}100%{background:var(--tile)}}
+
+/* Schmal (z. B. Split View neben der Home-App) */
+@media (max-width:720px){
+  #app{padding:10px;}
+  .grid{gap:10px;}
+  .tile{padding:12px 14px;border-radius:18px;}
+  .time{font-size:13vmin;}
+  .date{font-size:17px;margin-top:2px;}
+  .hours{display:none;}
+  .wx-icon{font-size:44px;}
+  .wx-temp{font-size:42px;}
+  .wx-text,.wx-side{font-size:15px;}
+  .stopname{font-size:18px;margin-bottom:4px;}
+  .dep{padding:8px 0;font-size:18px;gap:8px;}
+  .dep-t{width:64px;}
+  .chip{font-size:15px;min-width:44px;}
+  .dep-in{font-size:15px;}
+  .pomo-time{font-size:40px;}
+  .btn{padding:9px 12px;font-size:15px;}
+  .sp-cover{width:56px;height:56px;}
+  .sp-title{font-size:17px;}
+  .btn.round{width:46px;height:46px;}
+  .bar{margin-top:8px;}
+}
 
 /* Nacht */
 #night{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:999;display:block;}
@@ -105,9 +132,20 @@ a.scene .ic{font-size:32px;}
       <div id="board"></div>
     </section>
 
-    <section class="tile" style="grid-area:scenes">
-      <div class="label"><span>Szenen</span></div>
-      <div class="scenes" id="scenes"></div>
+    <section class="tile" id="spTile" style="grid-area:spotify">
+      <div class="label"><span>Spotify</span><span class="upd" id="spDevice"></span></div>
+      <div class="sp-row" id="spRow" hidden>
+        <img id="spCover" class="sp-cover" alt="" hidden>
+        <div class="sp-text"><div id="spTitle" class="sp-title">–</div><div id="spArtist" class="sp-artist"></div></div>
+        <div class="sp-btns">
+          <button class="btn round" id="spPrev" aria-label="Zurück"></button>
+          <button class="btn round main" id="spPlay" aria-label="Abspielen/Pause"></button>
+          <button class="btn round" id="spNext" aria-label="Weiter"></button>
+        </div>
+      </div>
+      <div class="bar" id="spBarWrap" hidden><div id="spBar"></div></div>
+      <div class="msg" id="spMsg" hidden></div>
+      <button class="btn main" id="spConnect" hidden>Mit Spotify verbinden</button>
     </section>
 
     <section class="tile" id="pomoTile" style="grid-area:pomo">
@@ -138,25 +176,26 @@ var CONFIG = {
   haltestelleId: "",                           // optional: feste Haltestellen-ID (überschreibt die Suche)
   haltestelleName: "",
   abfahrten: 6,                                // Anzahl angezeigter Abfahrten
-  szenen: [                                    // kurzbefehl = exakter Name des Kurzbefehls auf dem iPad
-    { name: "Arbeiten",    kurzbefehl: "Arbeiten",    icon: "💡", nachtAus: false },
-    { name: "Einschlafen", kurzbefehl: "Einschlafen", icon: "🌙", nachtAus: true  }
-  ],
   nachtVon: "23:00", nachtBis: "06:00",        // in dieser Zeit ist der Bildschirm schwarz
   kurzWachSek: 30,                             // Antippen in der Nacht: so lange sichtbar
   langWachMin: 10,                             // Knopf «wach bleiben»
-  mitRueckkehr: true                           // nach dem Kurzbefehl zurück zur Seite springen
+  spotifyClientId: "",                         // Client-ID deiner Spotify-App (siehe Anleitung)
+  spotifyRedirect: ""                          // leer = Adresse dieser Seite
 };
 /* =========================================== */
 
 var TRANSPORT = "https://transport.opendata.ch/v1";
+var SP_AUTH = "https://accounts.spotify.com";
+var SP_API = "https://api.spotify.com/v1";
+var SP_SCOPE = "user-read-playback-state user-modify-playback-state";
 var DAYS = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 var MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 var DUR = { fokus: 25*60000, pause: 5*60000 };
 
 var state = { stops:null, stopsErr:false, stopIdx:0, board:null, boardAt:0, boardErr:false,
-              weather:null, weatherAt:0, weatherErr:false, forcedUntil:0, wakeUntil:0 };
+              weather:null, weatherAt:0, weatherErr:false, wakeUntil:0, dark:false };
 var pomo = { mode:"fokus", running:false, endAt:0, left:DUR.fokus, flashUntil:0 };
+var SP = { token:null, refresh:null, expires:0, data:null, polledAt:0, busy:false, backoffUntil:0, err:"", msg:"", lastPoll:0 };
 var tickN = 0;
 
 function $(id){ return document.getElementById(id); }
@@ -164,6 +203,7 @@ function pad(n){ return n < 10 ? "0" + n : "" + n; }
 function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 function sGet(k){ try { return window.localStorage.getItem("gd." + k); } catch(e){ return null; } }
 function sSet(k, v){ try { window.localStorage.setItem("gd." + k, v); } catch(e){} }
+function sDel(k){ try { window.localStorage.removeItem("gd." + k); } catch(e){} }
 function hm(s){ var p = s.split(":"); return parseInt(p[0],10) * 60 + parseInt(p[1],10); }
 
 function getJSON(url, ms){
@@ -333,49 +373,188 @@ function renderBoard(){
   $("boardUpd").textContent = state.boardErr ? "veraltet" : pad(t.getHours()) + ":" + pad(t.getMinutes());
 }
 
-/* ---------- Szenen ---------- */
-function baseUrl(){ return location.href.split("#")[0]; }
-function buildScenes(){
-  var box = $("scenes"); box.innerHTML = "";
-  CONFIG.szenen.forEach(function(s){
-    var a = document.createElement("a");
-    a.className = "scene";
-    var back = baseUrl() + (s.nachtAus ? "#einschlafen" : "");
-    var href = CONFIG.mitRueckkehr
-      ? "shortcuts://x-callback-url/run-shortcut?name=" + encodeURIComponent(s.kurzbefehl) +
-        "&x-success=" + encodeURIComponent(back) + "&x-cancel=" + encodeURIComponent(back) + "&x-error=" + encodeURIComponent(back)
-      : "shortcuts://run-shortcut?name=" + encodeURIComponent(s.kurzbefehl);
-    a.setAttribute("href", href);
-    a.innerHTML = '<span class="ic">' + s.icon + "</span><span>" + esc(s.name) + "</span>";
-    a.addEventListener("click", function(){
-      a.className = "scene sent";
-      setTimeout(function(){ a.className = "scene"; }, 1500);
-      if (s.nachtAus) { forceNight(); }
-    });
-    box.appendChild(a);
+/* ---------- Spotify (Anmeldung per PKCE, ohne Server) ---------- */
+var ICON = {
+  prev: '<svg viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M6 6h2v12H6zM9.5 12 18 18V6z"/></svg>',
+  next: '<svg viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>',
+  play: '<svg viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>'
+};
+function spRedirect(){ return CONFIG.spotifyRedirect || (location.origin + location.pathname.replace(/index\.html$/, "")); }
+function b64url(bytes){
+  var s = "", i;
+  for (i = 0; i < bytes.length; i++) { s += String.fromCharCode(bytes[i]); }
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function randStr(n){
+  var cs = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~", a = new Uint8Array(n), s = "", i;
+  crypto.getRandomValues(a);
+  for (i = 0; i < n; i++) { s += cs.charAt(a[i] % cs.length); }
+  return s;
+}
+
+async function spLogin(){
+  try {
+    var v = randStr(96), st = randStr(16);
+    var ch = b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v))));
+    sSet("spVerifier", v); sSet("spState", st);
+    location.href = SP_AUTH + "/authorize?response_type=code&client_id=" + encodeURIComponent(CONFIG.spotifyClientId) +
+      "&scope=" + encodeURIComponent(SP_SCOPE) + "&redirect_uri=" + encodeURIComponent(spRedirect()) +
+      "&state=" + st + "&code_challenge_method=S256&code_challenge=" + ch;
+  } catch(e) { SP.msg = "Anmeldung nicht möglich (Browser zu alt?)."; renderSpotify(); }
+}
+
+async function spTokenRequest(params){
+  var r = await fetch(SP_AUTH + "/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params).toString()
   });
+  var j = await r.json();
+  if (!r.ok || !j.access_token) { var err = new Error(j.error || "token"); err.code = j.error; throw err; }
+  SP.token = j.access_token;
+  SP.expires = Date.now() + Math.max(60, (j.expires_in || 3600) - 60) * 1000;
+  if (j.refresh_token) { SP.refresh = j.refresh_token; sSet("spRefresh", SP.refresh); }
+}
+
+async function spHandleRedirect(){
+  var q = new URLSearchParams(location.search), code = q.get("code");
+  if (!code && !q.get("error")) { return; }
+  var ok = q.get("state") && q.get("state") === sGet("spState");
+  try { history.replaceState(null, "", location.pathname); } catch(e) {}
+  if (q.get("error") || !ok) { SP.msg = "Anmeldung abgebrochen."; return; }
+  try {
+    await spTokenRequest({ client_id: CONFIG.spotifyClientId, grant_type: "authorization_code", code: code,
+                           redirect_uri: spRedirect(), code_verifier: sGet("spVerifier") || "" });
+  } catch(e) { SP.msg = "Anmeldung fehlgeschlagen (" + (e.code || "Netz") + ")."; }
+  sDel("spVerifier"); sDel("spState");
+}
+
+async function spEnsureToken(){
+  if (SP.token && Date.now() < SP.expires) { return true; }
+  if (!SP.refresh) { return false; }
+  try {
+    await spTokenRequest({ client_id: CONFIG.spotifyClientId, grant_type: "refresh_token", refresh_token: SP.refresh });
+    return true;
+  } catch(e) {
+    if (e.code === "invalid_grant" || e.code === "invalid_client") { SP.refresh = null; SP.token = null; sDel("spRefresh"); SP.msg = "Verbindung abgelaufen – bitte neu verbinden."; }
+    return false;
+  }
+}
+
+async function spCall(method, path){
+  var tries = 0, r;
+  while (tries < 2) {
+    if (!(await spEnsureToken())) { return { status: 401 }; }
+    r = await fetch(SP_API + path, { method: method, headers: { "Authorization": "Bearer " + SP.token } });
+    if (r.status === 401 && tries === 0) { SP.token = null; tries++; continue; }
+    break;
+  }
+  var body = null;
+  if (r.status === 200) { try { body = await r.json(); } catch(e) {} }
+  return { status: r.status, body: body, retry: r.headers.get("Retry-After") };
+}
+
+async function spPoll(){
+  if (!SP.refresh && !SP.token) { return; }
+  if (SP.busy || Date.now() < SP.backoffUntil) { return; }
+  SP.busy = true; SP.lastPoll = Date.now();
+  try {
+    var r = await spCall("GET", "/me/player");
+    if (r.status === 200 && r.body) { SP.data = r.body; SP.polledAt = Date.now(); SP.err = ""; SP.msg = ""; }
+    else if (r.status === 204 || r.status === 200) { SP.data = null; SP.polledAt = Date.now(); SP.err = ""; }
+    else if (r.status === 429) { SP.backoffUntil = Date.now() + Math.max(10, parseInt(r.retry || "30", 10)) * 1000; SP.err = "limit"; }
+    else if (r.status === 401 || r.status === 403) { SP.err = "auth"; }
+    else { SP.err = "net"; }
+  } catch(e) { SP.err = "net"; }
+  SP.busy = false;
+  renderSpotify();
+}
+
+async function spControl(kind){
+  var d = SP.data, playing = !!(d && d.is_playing), method = "PUT", path;
+  if (kind === "play") { path = playing ? "/me/player/pause" : "/me/player/play"; if (d) { d.is_playing = !playing; SP.polledAt = Date.now(); } }
+  else if (kind === "next") { method = "POST"; path = "/me/player/next"; }
+  else { method = "POST"; path = "/me/player/previous"; }
+  renderSpotify();
+  try {
+    var r = await spCall(method, path);
+    if (r.status === 404) { SP.msg = "Kein aktives Gerät – starte Musik in der Spotify-App."; }
+    else if (r.status === 403) { SP.msg = "Das Steuern braucht Spotify Premium."; }
+    else if (r.status === 429) { SP.msg = "Zu viele Anfragen – kurz warten."; }
+    else if (r.status >= 400) { SP.msg = "Spotify hat den Befehl abgelehnt (" + r.status + ")."; }
+    else { SP.msg = ""; }
+  } catch(e) { SP.msg = "Spotify nicht erreichbar."; }
+  renderSpotify();
+  setTimeout(spPoll, 700);
+}
+
+function spCoverUrl(item){
+  var imgs = item && ((item.album && item.album.images) || item.images) || [], best = null, i;
+  for (i = 0; i < imgs.length; i++) { if (imgs[i].width >= 64 && (!best || imgs[i].width < best.width)) { best = imgs[i]; } }
+  return (best || imgs[0] || {}).url || "";
+}
+
+function renderSpotify(){
+  var has = !!CONFIG.spotifyClientId, connected = !!(SP.refresh || SP.token);
+  var row = $("spRow"), msg = $("spMsg"), conn = $("spConnect"), barW = $("spBarWrap");
+  $("spPrev").innerHTML = ICON.prev; $("spNext").innerHTML = ICON.next;
+  if (!has) {
+    row.hidden = true; barW.hidden = true; conn.hidden = true; msg.hidden = false;
+    msg.textContent = "Spotify ist noch nicht eingerichtet (Client-ID fehlt).";
+    $("spDevice").textContent = ""; return;
+  }
+  if (!connected) {
+    row.hidden = true; barW.hidden = true; conn.hidden = false;
+    msg.hidden = !SP.msg; msg.textContent = SP.msg;
+    $("spDevice").textContent = ""; return;
+  }
+  conn.hidden = true; row.hidden = false; barW.hidden = false;
+  var d = SP.data, item = d && d.item;
+  $("spPlay").innerHTML = (d && d.is_playing) ? ICON.pause : ICON.play;
+  if (item) {
+    $("spTitle").textContent = item.name || "–";
+    $("spArtist").textContent = item.artists ? item.artists.map(function(a){ return a.name; }).join(", ") : ((item.show && item.show.name) || "");
+    var cu = spCoverUrl(item), cv = $("spCover");
+    if (cu) { if (cv.getAttribute("src") !== cu) { cv.setAttribute("src", cu); } cv.hidden = false; } else { cv.hidden = true; }
+  } else {
+    $("spTitle").textContent = "Nichts spielt gerade";
+    $("spArtist").textContent = "Starte Musik in der Spotify-App";
+    $("spCover").hidden = true;
+  }
+  $("spDevice").textContent = (d && d.device && d.device.name) ? d.device.name : "";
+  var text = SP.msg || (SP.err === "net" ? "Spotify nicht erreichbar – neuer Versuch läuft." : (SP.err === "limit" ? "Spotify bremst (zu viele Anfragen) – kurze Pause." : ""));
+  msg.hidden = !text; msg.textContent = text;
+  spProgress();
+}
+
+function spProgress(){
+  var d = SP.data, item = d && d.item, bar = $("spBar");
+  if (!item || !item.duration_ms) { bar.style.width = "0%"; return; }
+  var p = (d.progress_ms || 0) + (d.is_playing ? Date.now() - SP.polledAt : 0);
+  bar.style.width = Math.max(0, Math.min(100, p / item.duration_ms * 100)) + "%";
+}
+
+async function spInit(){
+  $("spConnect").addEventListener("click", spLogin);
+  $("spPrev").addEventListener("click", function(){ spControl("prev"); });
+  $("spPlay").addEventListener("click", function(){ spControl("play"); });
+  $("spNext").addEventListener("click", function(){ spControl("next"); });
+  renderSpotify();
+  if (!CONFIG.spotifyClientId) { return; }
+  await spHandleRedirect();
+  if (!SP.refresh) { SP.refresh = sGet("spRefresh"); }
+  renderSpotify();
+  if (SP.refresh) { await spPoll(); }
 }
 
 /* ---------- Nachtmodus ---------- */
-function nextOccurrence(hhmm){
-  var m = hm(hhmm), d = new Date();
-  d.setHours(Math.floor(m / 60), m % 60, 0, 0);
-  if (d.getTime() <= Date.now()) { d.setDate(d.getDate() + 1); }
-  return d.getTime();
-}
-function forceNight(){
-  state.forcedUntil = nextOccurrence(CONFIG.nachtBis);
-  state.wakeUntil = 0;
-  sSet("forced", String(state.forcedUntil));
-  tick();
-}
 function inWindow(d){
   var m = d.getHours() * 60 + d.getMinutes(), a = hm(CONFIG.nachtVon), b = hm(CONFIG.nachtBis);
   return a < b ? (m >= a && m < b) : (m >= a || m < b);
 }
 function nightState(nowMs){
-  if (state.forcedUntil && state.forcedUntil <= nowMs) { state.forcedUntil = 0; sSet("forced", "0"); }
-  var armed = inWindow(new Date(nowMs)) || state.forcedUntil > nowMs;
+  var armed = inWindow(new Date(nowMs));
   return { armed: armed, dark: armed && state.wakeUntil <= nowMs };
 }
 
@@ -413,23 +592,22 @@ function tick(){
   renderPomo();
 
   var ns = nightState(nowMs);
+  state.dark = ns.dark;
   $("night").hidden = !ns.dark;
   $("stayAwake").hidden = !ns.armed;
 
   tickN++;
   if (tickN % 10 === 0) { renderBoard(); }
+  spProgress();
+  // Spotify: alle 10 s fragen (20 s im Leerlauf), nicht nachts und nicht im Hintergrund
+  if ((SP.refresh || SP.token) && !ns.dark && !document.hidden) {
+    var every = (SP.data && SP.data.is_playing) ? 10000 : 20000;
+    if (nowMs - SP.lastPoll >= every) { spPoll(); }
+  }
 }
 
 function init(){
-  buildScenes();
   renderWeather(); renderBoard(); renderPomo();
-
-  var f = parseInt(sGet("forced") || "0", 10);
-  if (f > Date.now()) { state.forcedUntil = f; }
-  if (location.hash === "#einschlafen") {
-    forceNight();
-    try { history.replaceState(null, "", baseUrl()); } catch(e) {}
-  }
 
   $("night").addEventListener("click", function(){ state.wakeUntil = Date.now() + CONFIG.kurzWachSek * 1000; tick(); });
   $("stayAwake").addEventListener("click", function(){ state.wakeUntil = Date.now() + CONFIG.langWachMin * 60000; tick(); });
@@ -440,12 +618,13 @@ function init(){
 
   tick();
   setInterval(tick, 1000);
+  spInit();
 
   loadWeather(); loadBoard();
   setInterval(loadWeather, 15 * 60000);
   setInterval(loadBoard, 30000);
   document.addEventListener("visibilitychange", function(){
-    if (!document.hidden) { loadWeather(); loadBoard(); tick(); }
+    if (!document.hidden) { loadWeather(); loadBoard(); spPoll(); tick(); }
   });
 }
 
