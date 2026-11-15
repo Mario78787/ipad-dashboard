@@ -72,6 +72,10 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
 .sp-btns{display:flex;gap:8px;flex:none;}
 .btn.round{width:54px;height:54px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;}
 .btn.round svg{display:block;}
+.row{display:flex;gap:8px;align-items:center;margin-top:10px;}
+.inp{flex:1;min-width:0;background:var(--tile2);border:1px solid var(--line);border-radius:12px;color:var(--text);font-size:16px;padding:12px 14px;font-family:inherit;-webkit-user-select:text;user-select:text;-webkit-appearance:none;}
+.linkbtn{appearance:none;-webkit-appearance:none;background:none;border:0;color:var(--dim);font-family:inherit;font-size:13px;text-decoration:underline;padding:6px 0;letter-spacing:0;text-transform:none;}
+.hint{color:var(--dim);font-size:13px;margin-top:6px;}
 
 /* Timer */
 .pomo-row{display:flex;align-items:center;gap:14px;}
@@ -133,7 +137,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
     </section>
 
     <section class="tile" id="spTile" style="grid-area:spotify">
-      <div class="label"><span>Spotify</span><span class="upd" id="spDevice"></span></div>
+      <div class="label"><span>Spotify</span><span class="upd"><button class="linkbtn" id="spExportBtn" hidden>Code für anderes Gerät</button> <span id="spDevice"></span></span></div>
       <div class="sp-row" id="spRow" hidden>
         <img id="spCover" class="sp-cover" alt="" hidden>
         <div class="sp-text"><div id="spTitle" class="sp-title">–</div><div id="spArtist" class="sp-artist"></div></div>
@@ -145,7 +149,17 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
       </div>
       <div class="bar" id="spBarWrap" hidden><div id="spBar"></div></div>
       <div class="msg" id="spMsg" hidden></div>
+      <div class="row" id="spExport" hidden>
+        <input class="inp" id="spCodeOut" type="text" readonly>
+        <button class="btn" id="spCodeCopy">Kopieren</button>
+      </div>
+      <div class="hint" id="spExportHint" hidden>Dieser Code gibt Zugriff auf deine Wiedergabe. Wie ein Passwort behandeln und nach dem Einfügen löschen.</div>
       <button class="btn main" id="spConnect" hidden>Mit Spotify verbinden</button>
+      <div><button class="linkbtn" id="spImportToggle" hidden>Stattdessen Code von einem anderen Gerät einfügen</button></div>
+      <div class="row" id="spImport" hidden>
+        <input class="inp" id="spCode" type="text" placeholder="Code einfügen" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <button class="btn main" id="spCodeOk">Verbinden</button>
+      </div>
     </section>
 
     <section class="tile" id="pomoTile" style="grid-area:pomo">
@@ -501,15 +515,18 @@ function renderSpotify(){
   $("spPrev").innerHTML = ICON.prev; $("spNext").innerHTML = ICON.next;
   if (!has) {
     row.hidden = true; barW.hidden = true; conn.hidden = true; msg.hidden = false;
+    $("spImportToggle").hidden = true; $("spImport").hidden = true; $("spExportBtn").hidden = true; $("spExport").hidden = true; $("spExportHint").hidden = true;
     msg.textContent = "Spotify ist noch nicht eingerichtet (Client-ID fehlt).";
     $("spDevice").textContent = ""; return;
   }
   if (!connected) {
     row.hidden = true; barW.hidden = true; conn.hidden = false;
+    $("spImportToggle").hidden = false; $("spExportBtn").hidden = true; $("spExport").hidden = true; $("spExportHint").hidden = true;
     msg.hidden = !SP.msg; msg.textContent = SP.msg;
     $("spDevice").textContent = ""; return;
   }
   conn.hidden = true; row.hidden = false; barW.hidden = false;
+  $("spImportToggle").hidden = true; $("spImport").hidden = true; $("spExportBtn").hidden = false;
   var d = SP.data, item = d && d.item;
   $("spPlay").innerHTML = (d && d.is_playing) ? ICON.pause : ICON.play;
   if (item) {
@@ -535,7 +552,35 @@ function spProgress(){
   bar.style.width = Math.max(0, Math.min(100, p / item.duration_ms * 100)) + "%";
 }
 
+function spToggleExport(){
+  var box = $("spExport"), hint = $("spExportHint");
+  box.hidden = !box.hidden; hint.hidden = box.hidden;
+  if (!box.hidden) { var i = $("spCodeOut"); i.value = SP.refresh || ""; try { i.focus(); i.select(); i.setSelectionRange(0, 9999); } catch(e) {} }
+}
+function spCopyCode(){
+  var i = $("spCodeOut"), b = $("spCodeCopy");
+  try { i.focus(); i.select(); i.setSelectionRange(0, 9999); } catch(e) {}
+  var done = function(){ b.textContent = "Kopiert"; setTimeout(function(){ b.textContent = "Kopieren"; }, 1500); };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(i.value).then(done, function(){ try { document.execCommand("copy"); done(); } catch(e) {} }); }
+    else { document.execCommand("copy"); done(); }
+  } catch(e) {}
+}
+async function spImportCode(){
+  var code = ($("spCode").value || "").replace(/\s+/g, "");
+  if (code.length < 20) { SP.msg = "Der Code ist zu kurz."; renderSpotify(); return; }
+  SP.refresh = code; SP.token = null; SP.msg = "";
+  var ok = await spEnsureToken();
+  if (ok) { sSet("spRefresh", SP.refresh); $("spCode").value = ""; SP.lastPoll = 0; await spPoll(); }
+  else { SP.refresh = null; SP.token = null; sDel("spRefresh"); SP.msg = "Der Code ist ungültig oder abgelaufen."; }
+  renderSpotify();
+}
+
 async function spInit(){
+  $("spExportBtn").addEventListener("click", spToggleExport);
+  $("spCodeCopy").addEventListener("click", spCopyCode);
+  $("spImportToggle").addEventListener("click", function(){ var b = $("spImport"); b.hidden = !b.hidden; if (!b.hidden) { try { $("spCode").focus(); } catch(e) {} } });
+  $("spCodeOk").addEventListener("click", spImportCode);
   $("spConnect").addEventListener("click", spLogin);
   $("spPrev").addEventListener("click", function(){ spControl("prev"); });
   $("spPlay").addEventListener("click", function(){ spControl("play"); });
