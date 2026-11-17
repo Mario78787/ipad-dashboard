@@ -19,12 +19,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
 #app{height:100%;padding:16px;}
 .grid{display:grid;gap:14px;height:100%;
   grid-template-columns:1fr 1fr;
-  grid-template-rows:auto minmax(0,1fr) auto;
-  grid-template-areas:"clock oev" "weather oev" "spotify pomo";}
+  grid-template-rows:auto minmax(0,1fr) auto auto;
+  grid-template-areas:"clock oev" "weather oev" "spotify mail" "pomo mail";}
 @media (orientation:portrait){
   .grid{grid-template-columns:1fr;
-    grid-template-rows:auto auto minmax(0,1fr) auto auto;
-    grid-template-areas:"clock" "weather" "oev" "spotify" "pomo";}
+    grid-template-rows:auto auto minmax(0,1fr) auto auto auto;
+    grid-template-areas:"clock" "weather" "oev" "mail" "spotify" "pomo";}
 }
 .tile{background:var(--tile);border:1px solid var(--line);border-radius:22px;padding:16px 20px;min-height:0;overflow:hidden;position:relative;}
 .label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
@@ -77,6 +77,19 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
 .linkbtn{appearance:none;-webkit-appearance:none;background:none;border:0;color:var(--dim);font-family:inherit;font-size:13px;text-decoration:underline;padding:6px 0;letter-spacing:0;text-transform:none;}
 .hint{color:var(--dim);font-size:13px;margin-top:6px;}
 
+/* Mails */
+#mailTile{display:flex;flex-direction:column;}
+#mailList{flex:1;min-height:0;overflow:hidden;}
+.mail{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);}
+.mail:first-child{border-top:0;}
+.mdot{width:9px;height:9px;border-radius:50%;flex:none;background:transparent;}
+.mail.unread .mdot{background:var(--accent);}
+.mtxt{flex:1;min-width:0;}
+.mfrom{font-size:15px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.msub{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.mail.unread .msub{font-weight:600;}
+.mtime{font-size:14px;color:var(--dim);flex:none;}
+
 /* Timer */
 .pomo-row{display:flex;align-items:center;gap:14px;}
 .pomo-time{font-size:56px;font-weight:300;font-variant-numeric:tabular-nums;line-height:1;}
@@ -104,6 +117,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
   .dep-t{width:64px;}
   .chip{font-size:15px;min-width:44px;}
   .dep-in{font-size:15px;}
+  .msub{font-size:16px;}
+  .mfrom{font-size:13px;}
   .pomo-time{font-size:40px;}
   .btn{padding:9px 12px;font-size:15px;}
   .sp-cover{width:56px;height:56px;}
@@ -162,6 +177,19 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
       </div>
     </section>
 
+    <section class="tile" id="mailTile" style="grid-area:mail">
+      <div class="label"><span>Wichtige Mails</span><span class="upd"><button class="linkbtn" id="mailExportBtn" hidden>Link für anderes Gerät</button> <button class="linkbtn" id="mailReset" hidden>Link ändern</button> <span id="mailUpd"></span></span></div>
+      <div id="mailList"><div class="msg">Lade Mails …</div></div>
+      <div class="row" id="mailExport" hidden>
+        <input class="inp" id="mailUrlOut" type="text" readonly>
+        <button class="btn" id="mailUrlCopy">Kopieren</button>
+      </div>
+      <div class="row" id="mailSetup" hidden>
+        <input class="inp" id="mailUrlIn" type="text" placeholder="Mail-Link einfügen" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <button class="btn main" id="mailUrlOk">Speichern</button>
+      </div>
+    </section>
+
     <section class="tile" id="pomoTile" style="grid-area:pomo">
       <div class="label"><span>Timer · <span id="pomoMode">Fokus</span></span></div>
       <div class="pomo-row">
@@ -194,7 +222,10 @@ var CONFIG = {
   kurzWachSek: 30,                             // Antippen in der Nacht: so lange sichtbar
   langWachMin: 10,                             // Knopf «wach bleiben»
   spotifyClientId: "50d5b00db7c548d4911943529c14f21e",                         // Client-ID deiner Spotify-App (siehe Anleitung)
-  spotifyRedirect: ""                          // leer = Adresse dieser Seite
+  spotifyRedirect: "",                         // leer = Adresse dieser Seite
+  mailUrl: "",                                 // Link deines Mail-Scripts (leer = wird auf dem Gerät eingegeben)
+  mailMax: 4,                                  // Anzahl angezeigter Mails
+  mailIgnore: "newsletter|marketing"           // Absender mit diesen Wörtern werden ausgeblendet
 };
 /* =========================================== */
 
@@ -593,6 +624,83 @@ async function spInit(){
   if (SP.refresh) { await spPoll(); }
 }
 
+/* ---------- Mails (über ein eigenes Google-Script, nur Absender + Betreff) ---------- */
+var MAIL = { list:null, at:0, err:"", busy:false };
+function mailUrl(){ return CONFIG.mailUrl || sGet("mailUrl") || ""; }
+function mailFrom(s){
+  s = String(s || "");
+  var m = /^\s*"?([^"<]*?)"?\s*<[^>]*>\s*$/.exec(s), n = m ? m[1] : s.replace(/[<>]/g, "");
+  return n.replace(/^\s+|\s+$/g, "") || s;
+}
+function mailWhen(iso){
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) { return ""; }
+  var now = new Date(), t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(), dd = d.getTime();
+  if (dd >= t0) { return pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  if (dd >= t0 - 86400000) { return "gestern"; }
+  return d.getDate() + "." + (d.getMonth() + 1) + ".";
+}
+async function loadMail(){
+  var u = mailUrl();
+  if (!u || MAIL.busy) { renderMail(); return; }
+  MAIL.busy = true;
+  try {
+    var d = await getJSON(u, 25000);
+    if (d && d.mails) { MAIL.list = d.mails; MAIL.at = Date.now(); MAIL.err = ""; }
+    else { MAIL.err = (d && d.error === "auth") ? "auth" : "net"; }
+  } catch(e) { MAIL.err = "net"; }
+  MAIL.busy = false;
+  renderMail();
+}
+function renderMail(){
+  var el = $("mailList"), has = !!mailUrl();
+  $("mailSetup").hidden = has && !$("mailSetup").getAttribute("data-open");
+  $("mailReset").hidden = !has; $("mailExportBtn").hidden = !has;
+  if (!has) { $("mailExport").hidden = true; }
+  if (!has) { el.innerHTML = '<div class="msg">Noch nicht eingerichtet. Link deines Mail-Scripts unten einfügen.</div>'; $("mailUpd").textContent = ""; return; }
+  if (!MAIL.list) {
+    el.innerHTML = '<div class="msg">' + (MAIL.err === "auth" ? "Link ungültig (Schlüssel falsch)." : (MAIL.err ? "Mails nicht erreichbar. Neuer Versuch läuft …" : "Lade Mails …")) + "</div>";
+    return;
+  }
+  var html = "", i, n = 0;
+  var ign = CONFIG.mailIgnore ? new RegExp(CONFIG.mailIgnore, "i") : null;
+  for (i = 0; i < MAIL.list.length && n < CONFIG.mailMax; i++) {
+    var m = MAIL.list[i];
+    if (ign && ign.test(String(m.from || ""))) { continue; }
+    html += '<div class="mail' + (m.unread ? " unread" : "") + '"><div class="mdot"></div><div class="mtxt"><div class="mfrom">' + esc(mailFrom(m.from)) +
+      '</div><div class="msub">' + esc(m.subject || "(kein Betreff)") + '</div></div><div class="mtime">' + esc(mailWhen(m.date)) + "</div></div>";
+    n++;
+  }
+  el.innerHTML = html || '<div class="msg">Keine wichtigen Mails. 🎉</div>';
+  var t = new Date(MAIL.at);
+  $("mailUpd").textContent = MAIL.err ? "veraltet" : pad(t.getHours()) + ":" + pad(t.getMinutes());
+}
+function mailSaveUrl(){
+  var u = ($("mailUrlIn").value || "").replace(/\s+/g, "");
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^?]+\/exec\?t=.{8,}$/.test(u)) { $("mailList").innerHTML = '<div class="msg">Das ist nicht der richtige Link. Er beginnt mit https://script.google.com/macros/s/ und endet auf /exec?t=…</div>'; return; }
+  sSet("mailUrl", u); $("mailUrlIn").value = ""; $("mailSetup").removeAttribute("data-open");
+  MAIL.list = null; MAIL.err = ""; renderMail(); loadMail();
+}
+function mailToggleExport(){
+  var box = $("mailExport"); box.hidden = !box.hidden;
+  if (!box.hidden) { var i = $("mailUrlOut"); i.value = mailUrl(); try { i.focus(); i.select(); i.setSelectionRange(0, 9999); } catch(e) {} }
+}
+function mailCopyUrl(){
+  var i = $("mailUrlOut"), b = $("mailUrlCopy");
+  try { i.focus(); i.select(); i.setSelectionRange(0, 9999); } catch(e) {}
+  var done = function(){ b.textContent = "Kopiert"; setTimeout(function(){ b.textContent = "Kopieren"; }, 1500); };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(i.value).then(done, function(){ try { document.execCommand("copy"); done(); } catch(e) {} }); }
+    else { document.execCommand("copy"); done(); }
+  } catch(e) {}
+}
+function mailToggleSetup(){
+  var s = $("mailSetup"), open = !s.getAttribute("data-open");
+  if (open) { s.setAttribute("data-open", "1"); } else { s.removeAttribute("data-open"); }
+  renderMail();
+  if (open) { try { $("mailUrlIn").focus(); } catch(e) {} }
+}
+
 /* ---------- Nachtmodus ---------- */
 function inWindow(d){
   var m = d.getHours() * 60 + d.getMinutes(), a = hm(CONFIG.nachtVon), b = hm(CONFIG.nachtBis);
@@ -643,6 +751,7 @@ function tick(){
 
   tickN++;
   if (tickN % 10 === 0) { renderBoard(); }
+  if (tickN % 300 === 0 && !ns.dark && !document.hidden) { loadMail(); }
   spProgress();
   // Spotify: alle 10 s fragen (20 s im Leerlauf), nicht nachts und nicht im Hintergrund
   if ((SP.refresh || SP.token) && !ns.dark && !document.hidden) {
@@ -657,6 +766,11 @@ function init(){
   $("night").addEventListener("click", function(){ state.wakeUntil = Date.now() + CONFIG.kurzWachSek * 1000; tick(); });
   $("stayAwake").addEventListener("click", function(){ state.wakeUntil = Date.now() + CONFIG.langWachMin * 60000; tick(); });
   $("stopName").addEventListener("click", cycleStop);
+  $("mailUrlOk").addEventListener("click", mailSaveUrl);
+  $("mailReset").addEventListener("click", mailToggleSetup);
+  $("mailExportBtn").addEventListener("click", mailToggleExport);
+  $("mailUrlCopy").addEventListener("click", mailCopyUrl);
+  renderMail();
   $("pomoStart").addEventListener("click", pomoStartPause);
   $("pomoReset").addEventListener("click", pomoReset);
   $("pomoSwitch").addEventListener("click", pomoSwitch);
@@ -665,11 +779,11 @@ function init(){
   setInterval(tick, 1000);
   spInit();
 
-  loadWeather(); loadBoard();
+  loadWeather(); loadBoard(); loadMail();
   setInterval(loadWeather, 15 * 60000);
   setInterval(loadBoard, 30000);
   document.addEventListener("visibilitychange", function(){
-    if (!document.hidden) { loadWeather(); loadBoard(); spPoll(); tick(); }
+    if (!document.hidden) { loadWeather(); loadBoard(); loadMail(); spPoll(); tick(); }
   });
 }
 
