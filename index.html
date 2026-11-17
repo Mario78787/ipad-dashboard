@@ -19,13 +19,14 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
 #app{height:100%;padding:16px;}
 .grid{display:grid;gap:14px;height:100%;
   grid-template-columns:1fr 1fr;
-  grid-template-rows:auto minmax(0,1fr) auto auto;
-  grid-template-areas:"clock oev" "weather oev" "spotify mail" "pomo mail";}
+  grid-template-rows:auto minmax(0,1fr) auto;
+  grid-template-areas:"clock right" "weather right" "spotify right";}
 @media (orientation:portrait){
   .grid{grid-template-columns:1fr;
-    grid-template-rows:auto auto minmax(0,1fr) auto auto auto;
-    grid-template-areas:"clock" "weather" "oev" "mail" "spotify" "pomo";}
+    grid-template-rows:auto auto minmax(0,1fr) auto;
+    grid-template-areas:"clock" "weather" "right" "spotify";}
 }
+.col{grid-area:right;display:flex;flex-direction:column;gap:14px;min-height:0;}
 .tile{background:var(--tile);border:1px solid var(--line);border-radius:22px;padding:16px 20px;min-height:0;overflow:hidden;position:relative;}
 .label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .label .upd{letter-spacing:0;text-transform:none;font-size:12px;}
@@ -49,17 +50,17 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
 .hour .p{font-size:13px;color:#6db7ff;height:16px;}
 
 /* ÖV */
-#oevTile{display:flex;flex-direction:column;}
-.stopname{appearance:none;-webkit-appearance:none;border:0;background:none;color:var(--text);font-family:inherit;font-size:22px;font-weight:600;padding:0;text-align:left;margin-bottom:10px;}
+#oevTile{display:flex;flex-direction:column;flex:0 1 auto;min-height:130px;}
+.stopname{appearance:none;-webkit-appearance:none;border:0;background:none;color:var(--text);font-family:inherit;font-size:19px;font-weight:600;padding:0;text-align:left;margin-bottom:6px;}
 .stopname.multi::after{content:" ⇄";color:var(--dim);font-weight:400;}
 #board{flex:1;min-height:0;overflow:hidden;}
-.dep{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line);font-size:22px;}
+.dep{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:17px;}
 .dep:first-child{border-top:0;}
-.dep-t{width:78px;font-variant-numeric:tabular-nums;font-weight:600;}
-.late{color:var(--late);font-size:15px;font-weight:600;margin-left:4px;}
-.chip{min-width:52px;text-align:center;background:var(--accent);color:#1a1205;font-weight:700;border-radius:9px;padding:3px 8px;font-size:18px;}
+.dep-t{width:64px;font-variant-numeric:tabular-nums;font-weight:600;}
+.late{color:var(--late);font-size:12px;font-weight:600;margin-left:4px;}
+.chip{min-width:52px;text-align:center;background:var(--accent);color:#1a1205;font-weight:700;border-radius:8px;padding:2px 7px;font-size:15px;}
 .dep-to{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.dep-in{color:var(--dim);font-size:18px;white-space:nowrap;}
+.dep-in{color:var(--dim);font-size:15px;white-space:nowrap;}
 .dep-in.soon{color:var(--accent);font-weight:600;}
 .msg{color:var(--dim);font-size:18px;line-height:1.5;padding:8px 0;}
 
@@ -78,28 +79,23 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
 .hint{color:var(--dim);font-size:13px;margin-top:6px;}
 
 /* Mails */
-#mailTile{display:flex;flex-direction:column;}
+#mailTile{display:flex;flex-direction:column;flex:1 1 0;min-height:150px;}
 #mailList{flex:1;min-height:0;overflow:hidden;}
-.mail{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);}
+.mail{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line);}
 .mail:first-child{border-top:0;}
-.mdot{width:9px;height:9px;border-radius:50%;flex:none;background:transparent;}
+.mdot{width:11px;height:11px;border-radius:50%;flex:none;background:transparent;}
 .mail.unread .mdot{background:var(--accent);}
 .mtxt{flex:1;min-width:0;}
-.mfrom{font-size:15px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.msub{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.mfrom{font-size:17px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.msub{font-size:23px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
 .mail.unread .msub{font-weight:600;}
-.mtime{font-size:14px;color:var(--dim);flex:none;}
+.mtime{font-size:16px;color:var(--dim);flex:none;}
 
-/* Timer */
-.pomo-row{display:flex;align-items:center;gap:14px;}
-.pomo-time{font-size:56px;font-weight:300;font-variant-numeric:tabular-nums;line-height:1;}
-.pomo-btns{margin-left:auto;display:flex;gap:8px;}
+/* Buttons */
 .btn{appearance:none;-webkit-appearance:none;border:1px solid var(--line);border-radius:14px;background:var(--tile2);color:var(--text);font-family:inherit;font-size:17px;padding:12px 16px;}
 .btn.main{background:var(--accent);color:#1a1205;border-color:var(--accent);font-weight:600;}
 .bar{height:5px;border-radius:3px;background:var(--line);margin-top:12px;overflow:hidden;}
 .bar>div{height:100%;width:0;background:var(--accent);}
-.tile.flash{animation:fl 1s steps(2,end) infinite;}
-@keyframes fl{0%{background:var(--tile)}50%{background:#4a3410}100%{background:var(--tile)}}
 
 /* Schmal (z. B. Split View neben der Home-App) */
 @media (max-width:720px){
@@ -112,14 +108,14 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
   .wx-icon{font-size:44px;}
   .wx-temp{font-size:42px;}
   .wx-text,.wx-side{font-size:15px;}
-  .stopname{font-size:18px;margin-bottom:4px;}
-  .dep{padding:8px 0;font-size:18px;gap:8px;}
-  .dep-t{width:64px;}
-  .chip{font-size:15px;min-width:44px;}
-  .dep-in{font-size:15px;}
-  .msub{font-size:16px;}
-  .mfrom{font-size:13px;}
-  .pomo-time{font-size:40px;}
+  .stopname{font-size:17px;margin-bottom:3px;}
+  .dep{padding:6px 0;font-size:16px;gap:8px;}
+  .dep-t{width:58px;}
+  .chip{font-size:14px;min-width:40px;}
+  .dep-in{font-size:14px;}
+  .msub{font-size:19px;}
+  .mfrom{font-size:14px;}
+  .mail{padding:9px 0;}
   .btn{padding:9px 12px;font-size:15px;}
   .sp-cover{width:56px;height:56px;}
   .sp-title{font-size:17px;}
@@ -145,11 +141,26 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
       <div id="wx"><div class="msg">Lade Wetter …</div></div>
     </section>
 
-    <section class="tile" id="oevTile" style="grid-area:oev">
+    <div class="col">
+    <section class="tile" id="oevTile">
       <div class="label"><span>Abfahrten</span><span class="upd" id="boardUpd"></span></div>
       <button class="stopname" id="stopName">Haltestelle wird gesucht …</button>
       <div id="board"></div>
     </section>
+
+    <section class="tile" id="mailTile">
+      <div class="label"><span>Wichtige Mails</span><span class="upd"><button class="linkbtn" id="mailExportBtn" hidden>Link für anderes Gerät</button> <button class="linkbtn" id="mailReset" hidden>Link ändern</button> <span id="mailUpd"></span></span></div>
+      <div id="mailList"><div class="msg">Lade Mails …</div></div>
+      <div class="row" id="mailExport" hidden>
+        <input class="inp" id="mailUrlOut" type="text" readonly>
+        <button class="btn" id="mailUrlCopy">Kopieren</button>
+      </div>
+      <div class="row" id="mailSetup" hidden>
+        <input class="inp" id="mailUrlIn" type="text" placeholder="Mail-Link einfügen" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <button class="btn main" id="mailUrlOk">Speichern</button>
+      </div>
+    </section>
+    </div>
 
     <section class="tile" id="spTile" style="grid-area:spotify">
       <div class="label"><span>Spotify</span><span class="upd"><button class="linkbtn" id="spExportBtn" hidden>Code für anderes Gerät</button> <span id="spDevice"></span></span></div>
@@ -176,32 +187,6 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
         <button class="btn main" id="spCodeOk">Verbinden</button>
       </div>
     </section>
-
-    <section class="tile" id="mailTile" style="grid-area:mail">
-      <div class="label"><span>Wichtige Mails</span><span class="upd"><button class="linkbtn" id="mailExportBtn" hidden>Link für anderes Gerät</button> <button class="linkbtn" id="mailReset" hidden>Link ändern</button> <span id="mailUpd"></span></span></div>
-      <div id="mailList"><div class="msg">Lade Mails …</div></div>
-      <div class="row" id="mailExport" hidden>
-        <input class="inp" id="mailUrlOut" type="text" readonly>
-        <button class="btn" id="mailUrlCopy">Kopieren</button>
-      </div>
-      <div class="row" id="mailSetup" hidden>
-        <input class="inp" id="mailUrlIn" type="text" placeholder="Mail-Link einfügen" autocapitalize="off" autocorrect="off" spellcheck="false">
-        <button class="btn main" id="mailUrlOk">Speichern</button>
-      </div>
-    </section>
-
-    <section class="tile" id="pomoTile" style="grid-area:pomo">
-      <div class="label"><span>Timer · <span id="pomoMode">Fokus</span></span></div>
-      <div class="pomo-row">
-        <div class="pomo-time" id="pomoTime">25:00</div>
-        <div class="pomo-btns">
-          <button class="btn main" id="pomoStart">Start</button>
-          <button class="btn" id="pomoReset">Reset</button>
-          <button class="btn" id="pomoSwitch">⇄</button>
-        </div>
-      </div>
-      <div class="bar"><div id="pomoBar"></div></div>
-    </section>
   </div>
 </div>
 <div id="night" hidden></div>
@@ -224,7 +209,7 @@ var CONFIG = {
   spotifyClientId: "50d5b00db7c548d4911943529c14f21e",                         // Client-ID deiner Spotify-App (siehe Anleitung)
   spotifyRedirect: "",                         // leer = Adresse dieser Seite
   mailUrl: "",                                 // Link deines Mail-Scripts (leer = wird auf dem Gerät eingegeben)
-  mailMax: 4,                                  // Anzahl angezeigter Mails
+  mailMax: 6,                                  // Anzahl angezeigter Mails
   mailIgnore: "newsletter|marketing"           // Absender mit diesen Wörtern werden ausgeblendet
 };
 /* =========================================== */
@@ -235,11 +220,9 @@ var SP_API = "https://api.spotify.com/v1";
 var SP_SCOPE = "user-read-playback-state user-modify-playback-state";
 var DAYS = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 var MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-var DUR = { fokus: 25*60000, pause: 5*60000 };
 
 var state = { stops:null, stopsErr:false, stopIdx:0, board:null, boardAt:0, boardErr:false,
               weather:null, weatherAt:0, weatherErr:false, wakeUntil:0, dark:false };
-var pomo = { mode:"fokus", running:false, endAt:0, left:DUR.fokus, flashUntil:0 };
 var SP = { token:null, refresh:null, expires:0, data:null, polledAt:0, busy:false, backoffUntil:0, err:"", msg:"", lastPoll:0 };
 var tickN = 0;
 
@@ -711,38 +694,11 @@ function nightState(nowMs){
   return { armed: armed, dark: armed && state.wakeUntil <= nowMs };
 }
 
-/* ---------- Timer ---------- */
-function pomoStartPause(){
-  if (pomo.running) { pomo.left = Math.max(0, pomo.endAt - Date.now()); pomo.running = false; }
-  else { pomo.endAt = Date.now() + pomo.left; pomo.running = true; pomo.flashUntil = 0; }
-  renderPomo();
-}
-function pomoReset(){ pomo.running = false; pomo.left = DUR[pomo.mode]; pomo.flashUntil = 0; renderPomo(); }
-function pomoSwitch(){ pomo.mode = pomo.mode === "fokus" ? "pause" : "fokus"; pomoReset(); }
-function renderPomo(){
-  var now = Date.now();
-  var left = pomo.running ? Math.max(0, pomo.endAt - now) : pomo.left;
-  var s = Math.ceil(left / 1000);
-  $("pomoTime").textContent = pad(Math.floor(s / 60)) + ":" + pad(s % 60);
-  $("pomoMode").textContent = pomo.mode === "fokus" ? "Fokus" : "Pause";
-  $("pomoStart").textContent = pomo.running ? "Pause" : "Start";
-  $("pomoBar").style.width = Math.round((1 - left / DUR[pomo.mode]) * 100) + "%";
-  $("pomoTile").className = "tile" + (now < pomo.flashUntil ? " flash" : "");
-}
-
 /* ---------- Takt ---------- */
 function tick(){
   var now = new Date(), nowMs = now.getTime();
   $("time").textContent = pad(now.getHours()) + ":" + pad(now.getMinutes());
   $("date").textContent = DAYS[now.getDay()] + ", " + now.getDate() + ". " + MONTHS[now.getMonth()];
-
-  if (pomo.running && pomo.endAt <= nowMs) {
-    pomo.running = false;
-    pomo.mode = pomo.mode === "fokus" ? "pause" : "fokus";
-    pomo.left = DUR[pomo.mode];
-    pomo.flashUntil = nowMs + 8000;
-  }
-  renderPomo();
 
   var ns = nightState(nowMs);
   state.dark = ns.dark;
@@ -761,7 +717,7 @@ function tick(){
 }
 
 function init(){
-  renderWeather(); renderBoard(); renderPomo();
+  renderWeather(); renderBoard();
 
   $("night").addEventListener("click", function(){ state.wakeUntil = Date.now() + CONFIG.kurzWachSek * 1000; tick(); });
   $("stayAwake").addEventListener("click", function(){ state.wakeUntil = Date.now() + CONFIG.langWachMin * 60000; tick(); });
@@ -771,9 +727,6 @@ function init(){
   $("mailExportBtn").addEventListener("click", mailToggleExport);
   $("mailUrlCopy").addEventListener("click", mailCopyUrl);
   renderMail();
-  $("pomoStart").addEventListener("click", pomoStartPause);
-  $("pomoReset").addEventListener("click", pomoReset);
-  $("pomoSwitch").addEventListener("click", pomoSwitch);
 
   tick();
   setInterval(tick, 1000);
